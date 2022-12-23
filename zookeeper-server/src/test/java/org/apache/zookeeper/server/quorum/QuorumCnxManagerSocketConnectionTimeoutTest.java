@@ -26,7 +26,6 @@ import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import org.apache.zookeeper.ZKTestCase;
 import org.apache.zookeeper.test.ClientBase;
-import org.apache.zookeeper.test.QuorumRestartTest;
 import org.apache.zookeeper.test.QuorumUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -36,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 public class QuorumCnxManagerSocketConnectionTimeoutTest extends ZKTestCase {
 
-    private static final Logger LOG = LoggerFactory.getLogger(QuorumRestartTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(QuorumCnxManagerSocketConnectionTimeoutTest.class);
     private QuorumUtil qu;
 
     @Before
@@ -68,7 +67,7 @@ public class QuorumCnxManagerSocketConnectionTimeoutTest extends ZKTestCase {
         // use a custom socket factory that will cause timeout instead of connecting to the
         // leader election port of the current leader
         final InetSocketAddress leaderElectionAddress =
-            qu.getLeaderQuorumPeer().getElectionAddress();
+            qu.getLeaderQuorumPeer().getElectionAddress().getOne();
         QuorumCnxManager.setSocketFactory(() -> new SocketStub(leaderElectionAddress));
 
         qu.shutdown(leaderId);

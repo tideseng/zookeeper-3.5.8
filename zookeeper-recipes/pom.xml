@@ -24,9 +24,10 @@
   <parent>
     <groupId>org.apache.zookeeper</groupId>
     <artifactId>parent</artifactId>
-    <version>3.5.8</version>
+    <version>3.6.1</version>
   </parent>
 
+  <groupId>org.apache.zookeeper</groupId>
   <artifactId>zookeeper-recipes</artifactId>
   <packaging>pom</packaging>
   <name>Apache ZooKeeper - Recipes</name>
@@ -75,8 +76,18 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.xerial.snappy</groupId>
+      <artifactId>snappy-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

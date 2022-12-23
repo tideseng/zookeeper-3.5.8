@@ -20,10 +20,12 @@ package org.apache.zookeeper.test.system;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -143,7 +145,7 @@ public class BaseSysTest {
 
     private QuorumPeer qps[];
     private File qpsDirs[];
-    HashMap<Long,QuorumServer> peers;
+    Map<Long,QuorumServer> peers;
     private void fakeConfigureServers(int count) throws IOException {
         peers = new HashMap<Long,QuorumServer>();
         qps = new QuorumPeer[count];
@@ -175,11 +177,12 @@ public class BaseSysTest {
     final static int tickTime = 2000;
     final static int initLimit = 3;
     final static int syncLimit = 3;
+    final static int connectToLearnerMasterLimit = 3;
 
     public void startServer(int index) throws IOException {
         int port = fakeBasePort+10+index;
         if (fakeMachines) {
-            qps[index] = new QuorumPeer(peers, qpsDirs[index], qpsDirs[index], port, 0, index+1, tickTime, initLimit, syncLimit);
+            qps[index] = new QuorumPeer(peers, qpsDirs[index], qpsDirs[index], port, 3, index+1, tickTime, initLimit, syncLimit, connectToLearnerMasterLimit);
             qps[index].start();
         } else {
             try {
@@ -221,15 +224,15 @@ public class BaseSysTest {
 
     }
     private Instance fakeBaseClients[];
-    private void fakeConfigureClients(int count, Class<? extends Instance> clazz, String params) throws IOException, ClassNotFoundException {
+    private void fakeConfigureClients(int count, Class<? extends Instance> clazz, String params) {
         fakeBaseClients = new Instance[count];
         for(int i = 0; i < count; i++) {
             try {
-                fakeBaseClients[i] = clazz.newInstance();
-            } catch (InstantiationException e) {
-                e.printStackTrace();
-                return;
-            } catch (IllegalAccessException e) {
+                fakeBaseClients[i] = clazz.getConstructor().newInstance();
+            } catch (InstantiationException
+                    | IllegalAccessException
+                    | NoSuchMethodException
+                    | InvocationTargetException e) {
                 e.printStackTrace();
                 return;
             }

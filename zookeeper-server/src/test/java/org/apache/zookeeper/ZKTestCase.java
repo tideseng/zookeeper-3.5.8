@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,12 @@
 
 package org.apache.zookeeper;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import java.io.File;
 import java.time.LocalDateTime;
+import org.apache.zookeeper.util.ServiceUtils;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
@@ -27,17 +31,22 @@ import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Base class for a non-parameterized ZK test.
  *
  * Basic utilities shared by all tests. Also logging of various events during
  * the test execution (start/stop/success/failure/etc...)
  */
-@SuppressWarnings("deprecation")
 @RunWith(JUnit4ZKTestRunner.class)
 public class ZKTestCase {
+
+    protected static final File testBaseDir = new File(System.getProperty("build.test.dir", "build"));
     private static final Logger LOG = LoggerFactory.getLogger(ZKTestCase.class);
+
+    static {
+        // Disable System.exit in tests.
+        ServiceUtils.setSystemExitProcedure(ServiceUtils.LOG_ONLY);
+    }
 
     private String testName;
 
@@ -45,9 +54,25 @@ public class ZKTestCase {
         return testName;
     }
 
+    @BeforeClass
+    public static void before() {
+        if (!testBaseDir.exists()) {
+            assertTrue(
+                "Cannot properly create test base directory " + testBaseDir.getAbsolutePath(),
+                testBaseDir.mkdirs());
+        } else if (!testBaseDir.isDirectory()) {
+            assertTrue(
+                "Cannot properly delete file with duplicate name of test base directory " + testBaseDir.getAbsolutePath(),
+                testBaseDir.delete());
+            assertTrue(
+                "Cannot properly create test base directory " + testBaseDir.getAbsolutePath(),
+                testBaseDir.mkdirs());
+        }
+    }
+
     @Rule
-    public TestWatcher watchman= new TestWatcher() {
-        
+    public TestWatcher watchman = new TestWatcher() {
+
         @Override
         public void starting(Description method) {
             // By default, disable starting a JettyAdminServer in tests to avoid
@@ -58,30 +83,33 @@ public class ZKTestCase {
             // Here we enable the 4lw which ZooKeeper tests depends.
             System.setProperty("zookeeper.4lw.commands.whitelist", "*");
             testName = method.getMethodName();
-            LOG.info("STARTING " + testName);
+            LOG.info("STARTING {}", testName);
         }
 
         @Override
         public void finished(Description method) {
-            LOG.info("FINISHED " + testName);
+            LOG.info("FINISHED {}", testName);
         }
 
         @Override
         public void succeeded(Description method) {
-            LOG.info("SUCCEEDED " + testName);
+            LOG.info("SUCCEEDED {}", testName);
         }
 
         @Override
         public void failed(Throwable e, Description method) {
-            LOG.info("FAILED " + testName, e);
+            LOG.error("FAILED {}", testName, e);
         }
 
     };
+
     public interface WaitForCondition {
+
         /**
          * @return true when success
          */
         boolean evaluate();
+
     }
 
     /**

@@ -23,9 +23,10 @@
   <parent>
     <groupId>org.apache.zookeeper</groupId>
     <artifactId>zookeeper-contrib</artifactId>
-    <version>3.5.8</version>
+    <version>3.6.1</version>
   </parent>
 
+  <groupId>org.apache.zookeeper</groupId>
   <artifactId>zookeeper-contrib-loggraph</artifactId>
   <packaging>jar</packaging>
   <name>Apache ZooKeeper - Contrib - Loggraph</name>

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.zookeeper.server.ExitCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.zookeeper.AsyncCallback;
@@ -205,7 +206,7 @@ public class InstanceContainer implements Watcher, AsyncCallback.ChildrenCallbac
     public static void main(String[] args) throws UnknownHostException, IOException, InterruptedException, KeeperException {
         if (args.length != 3) {
             System.err.println("USAGE: " + InstanceContainer.class.getName() + " name zkHostPort znodePrefix");
-            System.exit(2);
+            System.exit(ExitCode.INVALID_INVOCATION.getValue());
         }
         new InstanceContainer(args[0], args[1], args[2]).run();
         while(true) {
@@ -217,7 +218,7 @@ public class InstanceContainer implements Watcher, AsyncCallback.ChildrenCallbac
         if (KeeperState.Expired == event.getState()) {
             // It's all over
             LOG.error("Lost session");
-            System.exit(4);
+            System.exit(ExitCode.ERROR_STARTING_ADMIN_SERVER.getValue());
         }
         if (event.getPath() != null && event.getPath().equals(assignmentsNode)) {
             // children have changed, so read in the new list
@@ -225,7 +226,7 @@ public class InstanceContainer implements Watcher, AsyncCallback.ChildrenCallbac
         }
     }
 
-    HashMap<String, Instance> instances = new HashMap<String, Instance>();
+    Map<String, Instance> instances = new HashMap<String, Instance>();
 
     @Override
     public void processResult(int rc, String path, Object ctx, List<String> children) {
@@ -234,14 +235,14 @@ public class InstanceContainer implements Watcher, AsyncCallback.ChildrenCallbac
             zk.getChildren(assignmentsNode, true, this, null);
             return;
         }
-        HashMap<String, Instance> newList = new HashMap<String, Instance>();
+        Map<String, Instance> newList = new HashMap<String, Instance>();
         // check for differences
         Stat stat = new Stat();
         for(String child: children) {
             Instance i = instances.remove(child);
             if (i == null) {
                 // Start up a new instance
-                byte data[] = null;
+                byte[] data = null;
                 String myNode = assignmentsNode + '/' + child;
                 while(true) {
                     try {
@@ -270,7 +271,7 @@ public class InstanceContainer implements Watcher, AsyncCallback.ChildrenCallbac
                     }
                     try {
                         Class<?> c = Class.forName(clazz);
-                        i = (Instance)c.newInstance();
+                        i = (Instance) c.getConstructor().newInstance();
                         Reporter reporter = new MyReporter(child);
                         i.setReporter(reporter);
                         i.configure(conf);

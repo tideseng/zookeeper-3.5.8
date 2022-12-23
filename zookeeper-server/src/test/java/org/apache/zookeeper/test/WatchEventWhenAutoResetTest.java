@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,33 +18,39 @@
 
 package org.apache.zookeeper.test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.ZKTestCase;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.test.ClientBase.CountdownWatcher;
-import org.apache.zookeeper.ZKTestCase;
-import org.junit.Assert;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class WatchEventWhenAutoResetTest extends ZKTestCase {
-    protected static final Logger LOG = LoggerFactory
-            .getLogger(WatchEventWhenAutoResetTest.class);
+
+    protected static final Logger LOG = LoggerFactory.getLogger(WatchEventWhenAutoResetTest.class);
 
     // waiting time for expected condition
     private static final int TIMEOUT = 30000;
+    private QuorumUtil qu;
+    private EventsWatcher watcher;
+    private ZooKeeper zk1, zk2;
 
-    static public class EventsWatcher extends CountdownWatcher {
+    public static class EventsWatcher extends CountdownWatcher {
+
         private LinkedBlockingQueue<WatchedEvent> dataEvents = new LinkedBlockingQueue<WatchedEvent>();
 
         @Override
@@ -61,18 +67,17 @@ public class WatchEventWhenAutoResetTest extends ZKTestCase {
 
         public void assertEvent(long timeout, EventType eventType) {
             try {
-                WatchedEvent event = dataEvents.poll(timeout,
-                        TimeUnit.MILLISECONDS);
-                Assert.assertNotNull("do not receive a " + eventType, event);
-                Assert.assertEquals(eventType, event.getType());
+                WatchedEvent event = dataEvents.poll(timeout, TimeUnit.MILLISECONDS);
+                assertNotNull("do not receive a " + eventType, event);
+                assertEquals(eventType, event.getType());
             } catch (InterruptedException e) {
                 LOG.warn("ignoring interrupt during EventsWatcher assertEvent");
             }
         }
+
     }
 
-    private ZooKeeper createClient(QuorumUtil qu, int id, EventsWatcher watcher)
-            throws IOException {
+    private ZooKeeper createClient(QuorumUtil qu, int id, EventsWatcher watcher) throws IOException {
         String hostPort = "127.0.0.1:" + qu.getPeer(id).clientPort;
         ZooKeeper zk = new ZooKeeper(hostPort, TIMEOUT, watcher);
         try {
@@ -80,7 +85,7 @@ public class WatchEventWhenAutoResetTest extends ZKTestCase {
         } catch (InterruptedException e) {
             // ignoring the interrupt
         } catch (TimeoutException e) {
-            Assert.fail("can not connect to " + hostPort);
+            fail("can not connect to " + hostPort);
         }
         return zk;
     }
@@ -90,79 +95,65 @@ public class WatchEventWhenAutoResetTest extends ZKTestCase {
     }
 
     @Before
-    public void setUp() {
+    public void setUp() throws IOException {
         System.setProperty("zookeeper.admin.enableServer", "false");
+
+        qu = new QuorumUtil(1);
+        qu.startAll();
+
+        watcher = new EventsWatcher();
+        zk1 = createClient(qu, 1, watcher);
+        zk2 = createClient(qu, 2);
+    }
+
+    @After
+    public void tearDown() throws InterruptedException {
+        if (zk1 != null) {
+            zk1.close();
+            zk1 = null;
+        }
+        if (zk2 != null) {
+            zk2.close();
+            zk2 = null;
+        }
+        if (watcher != null) {
+            watcher = null;
+        }
+        if (qu != null) {
+            qu.shutdownAll();
+            qu = null;
+        }
     }
 
     @Test
     public void testNodeDataChanged() throws Exception {
-        QuorumUtil qu = new QuorumUtil(1);
-        qu.startAll();
-
-        EventsWatcher watcher = new EventsWatcher();
-        ZooKeeper zk1 = createClient(qu, 1, watcher);
-        ZooKeeper zk2 = createClient(qu, 2);
-
         String path = "/test-changed";
-
-        zk1.create(path, new byte[1], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
-        zk1.getData(path, watcher, null);
+        zk1.create(path, new byte[1], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        Stat stat1 = zk1.exists(path, watcher);
         qu.shutdown(1);
-        zk2.delete(path, -1);
-        zk2.create(path, new byte[2], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        zk2.setData(path, new byte[2], stat1.getVersion());
         qu.start(1);
         watcher.waitForConnected(TIMEOUT);
         watcher.assertEvent(TIMEOUT, EventType.NodeDataChanged);
-
-        zk1.exists(path, watcher);
-        qu.shutdown(1);
-        zk2.delete(path, -1);
-        zk2.create(path, new byte[2], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
-        qu.start(1);
-        watcher.waitForConnected(TIMEOUT * 1000L);
-        watcher.assertEvent(TIMEOUT, EventType.NodeDataChanged);
-
-        qu.shutdownAll();
     }
 
     @Test
     public void testNodeCreated() throws Exception {
-        QuorumUtil qu = new QuorumUtil(1);
-        qu.startAll();
-
-        EventsWatcher watcher = new EventsWatcher();
-        ZooKeeper zk1 = createClient(qu, 1, watcher);
-        ZooKeeper zk2 = createClient(qu, 2);
-
         String path = "/test1-created";
 
         zk1.exists(path, watcher);
         qu.shutdown(1);
-        zk2.create(path, new byte[2], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        zk2.create(path, new byte[2], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         qu.start(1);
         watcher.waitForConnected(TIMEOUT * 1000L);
         watcher.assertEvent(TIMEOUT, EventType.NodeCreated);
-
-        qu.shutdownAll();
     }
 
     @Test
     public void testNodeDeleted() throws Exception {
-        QuorumUtil qu = new QuorumUtil(1);
-        qu.startAll();
-
-        EventsWatcher watcher = new EventsWatcher();
-        ZooKeeper zk1 = createClient(qu, 1, watcher);
-        ZooKeeper zk2 = createClient(qu, 2);
-
         String path = "/test-deleted";
 
-        zk1.create(path, new byte[1], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        zk1.create(path, new byte[1], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         zk1.getData(path, watcher, null);
         qu.shutdown(1);
         zk2.delete(path, -1);
@@ -170,8 +161,7 @@ public class WatchEventWhenAutoResetTest extends ZKTestCase {
         watcher.waitForConnected(TIMEOUT * 1000L);
         watcher.assertEvent(TIMEOUT, EventType.NodeDeleted);
 
-        zk1.create(path, new byte[1], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        zk1.create(path, new byte[1], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         zk1.exists(path, watcher);
         qu.shutdown(1);
         zk2.delete(path, -1);
@@ -179,40 +169,27 @@ public class WatchEventWhenAutoResetTest extends ZKTestCase {
         watcher.waitForConnected(TIMEOUT * 1000L);
         watcher.assertEvent(TIMEOUT, EventType.NodeDeleted);
 
-        zk1.create(path, new byte[1], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        zk1.create(path, new byte[1], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         zk1.getChildren(path, watcher);
         qu.shutdown(1);
         zk2.delete(path, -1);
         qu.start(1);
         watcher.waitForConnected(TIMEOUT * 1000L);
         watcher.assertEvent(TIMEOUT, EventType.NodeDeleted);
-
-        qu.shutdownAll();
     }
 
     @Test
     public void testNodeChildrenChanged() throws Exception {
-        QuorumUtil qu = new QuorumUtil(1);
-        qu.startAll();
-
-        EventsWatcher watcher = new EventsWatcher();
-        ZooKeeper zk1 = createClient(qu, 1, watcher);
-        ZooKeeper zk2 = createClient(qu, 2);
-
         String path = "/test-children-changed";
 
-        zk1.create(path, new byte[1], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        zk1.create(path, new byte[1], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         zk1.getChildren(path, watcher);
         qu.shutdown(1);
-        zk2.create(path + "/children-1", new byte[2],
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        zk2.create(path + "/children-1", new byte[2], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         qu.start(1);
         watcher.waitForConnected(TIMEOUT * 1000L);
         watcher.assertEvent(TIMEOUT, EventType.NodeChildrenChanged);
-
-        qu.shutdownAll();
     }
+
 }
 

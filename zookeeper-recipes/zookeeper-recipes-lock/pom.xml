@@ -23,9 +23,10 @@
   <parent>
     <groupId>org.apache.zookeeper</groupId>
     <artifactId>zookeeper-recipes</artifactId>
-    <version>3.5.8</version>
+    <version>3.6.1</version>
   </parent>
 
+  <groupId>org.apache.zookeeper</groupId>
   <artifactId>zookeeper-recipes-lock</artifactId>
   <packaging>jar</packaging>
   <name>Apache ZooKeeper - Recipes - Lock</name>

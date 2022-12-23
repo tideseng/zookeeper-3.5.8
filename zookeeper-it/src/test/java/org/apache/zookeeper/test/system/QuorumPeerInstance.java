@@ -26,6 +26,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ class QuorumPeerInstance implements Instance {
 
     private static final int syncLimit = 3;
     private static final int initLimit = 3;
+    private static final int connectToLearnerMasterLimit = 3;
     private static final int tickTime = 2000;
     String serverHostPort;
     int serverId;
@@ -55,7 +57,7 @@ class QuorumPeerInstance implements Instance {
     InetSocketAddress clientAddr;
     InetSocketAddress quorumLeaderAddr;
     InetSocketAddress quorumLeaderElectionAddr;
-    HashMap<Long, QuorumServer> peers;
+    Map<Long, QuorumServer> peers;
     File snapDir, logDir;
 
     public QuorumPeerInstance() {
@@ -190,7 +192,7 @@ class QuorumPeerInstance implements Instance {
                     return;
                 }
                 System.err.println("SnapDir = " + snapDir + " LogDir = " + logDir);
-                peer = new QuorumPeer(peers, snapDir, logDir, clientAddr.getPort(), 0, serverId, tickTime, initLimit, syncLimit);
+                peer = new QuorumPeer(peers, snapDir, logDir, clientAddr.getPort(), 3, serverId, tickTime, initLimit, syncLimit, connectToLearnerMasterLimit);
                 peer.start();
                 for(int i = 0; i < 5; i++) {
                     Thread.sleep(500);
@@ -274,7 +276,7 @@ class QuorumPeerInstance implements Instance {
     /**
      * Stop an instance of the quorumPeer
      * @param im the manager of the instance
-     * @param index the zero based index fo the server to stop
+     * @param index the zero based index of the server to stop
      * @throws InterruptedException
      * @throws KeeperException
      * @throws NoAssignmentException

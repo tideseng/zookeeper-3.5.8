@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,23 +20,28 @@ package org.apache.zookeeper.server.auth;
 
 import java.util.Enumeration;
 import java.util.HashMap;
-
+import java.util.Map;
+import org.apache.zookeeper.server.ZooKeeperServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.zookeeper.server.ZooKeeperServer;
-
 public class ProviderRegistry {
+
     private static final Logger LOG = LoggerFactory.getLogger(ProviderRegistry.class);
 
     private static boolean initialized = false;
-    private static HashMap<String, AuthenticationProvider> authenticationProviders =
-        new HashMap<String, AuthenticationProvider>();
+    private static Map<String, AuthenticationProvider> authenticationProviders = new HashMap<>();
+
+    //VisibleForTesting
+    public static void reset() {
+        synchronized (ProviderRegistry.class) {
+            initialized = false;
+            authenticationProviders.clear();
+        }
+    }
 
     public static void initialize() {
         synchronized (ProviderRegistry.class) {
-            if (initialized)
-                return;
             IPAuthenticationProvider ipp = new IPAuthenticationProvider();
             DigestAuthenticationProvider digp = new DigestAuthenticationProvider();
             authenticationProviders.put(ipp.getScheme(), ipp);
@@ -47,13 +52,11 @@ public class ProviderRegistry {
                 if (k.startsWith("zookeeper.authProvider.")) {
                     String className = System.getProperty(k);
                     try {
-                        Class<?> c = ZooKeeperServer.class.getClassLoader()
-                                .loadClass(className);
-                        AuthenticationProvider ap = (AuthenticationProvider) c.getDeclaredConstructor()
-                                .newInstance();
+                        Class<?> c = ZooKeeperServer.class.getClassLoader().loadClass(className);
+                        AuthenticationProvider ap = (AuthenticationProvider) c.getDeclaredConstructor().newInstance();
                         authenticationProviders.put(ap.getScheme(), ap);
                     } catch (Exception e) {
-                        LOG.warn("Problems loading " + className,e);
+                        LOG.warn("Problems loading {}", className, e);
                     }
                 }
             }
@@ -61,17 +64,27 @@ public class ProviderRegistry {
         }
     }
 
+    public static ServerAuthenticationProvider getServerProvider(String scheme) {
+        return WrappedAuthenticationProvider.wrap(getProvider(scheme));
+    }
+
     public static AuthenticationProvider getProvider(String scheme) {
-        if(!initialized)
+        if (!initialized) {
             initialize();
+        }
         return authenticationProviders.get(scheme);
+    }
+
+    public static void removeProvider(String scheme) {
+        authenticationProviders.remove(scheme);
     }
 
     public static String listProviders() {
         StringBuilder sb = new StringBuilder();
-        for(String s: authenticationProviders.keySet()) {
-        sb.append(s + " ");
-}
+        for (String s : authenticationProviders.keySet()) {
+            sb.append(s).append(" ");
+        }
         return sb.toString();
     }
+
 }

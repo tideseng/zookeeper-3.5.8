@@ -85,7 +85,7 @@ public class SaslKerberosAuthOverSSLTest extends ClientBase {
         hostPort = host + ":" + port;
 
         serverFactory = ServerCnxnFactory.createFactory();
-        serverFactory.configure(new InetSocketAddress(host, port), maxCnxns, true);
+        serverFactory.configure(new InetSocketAddress(host, port), maxCnxns, -1, true);
 
         super.setUp();
     }
@@ -132,6 +132,7 @@ public class SaslKerberosAuthOverSSLTest extends ClientBase {
 
         // server side SASL config
         System.setProperty("zookeeper.authProvider.1", "org.apache.zookeeper.server.auth.SASLAuthenticationProvider");
+        System.setProperty(SaslTestUtil.requireSASLAuthProperty, "true");
 
         // generating the SASL config to use (contains sections both for the client and the server)
         // note: we use "refreshKrb5Config=true" to refresh the kerberos config in the JVM,
@@ -185,6 +186,7 @@ public class SaslKerberosAuthOverSSLTest extends ClientBase {
         System.clearProperty(LOGIN_CONTEXT_NAME_KEY);
         System.clearProperty("zookeeper.authProvider.1");
 
+        System.clearProperty(SaslTestUtil.requireSASLAuthProperty);
         System.clearProperty(ZOOKEEPER_SERVER_PRINCIPAL);
     }
 

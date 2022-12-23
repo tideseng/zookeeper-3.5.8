@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class QuorumRestartTest extends ZKTestCase {
+
     private static final Logger LOG = LoggerFactory.getLogger(QuorumRestartTest.class);
     private QuorumUtil qu;
 
@@ -42,11 +43,11 @@ public class QuorumRestartTest extends ZKTestCase {
         qu.startAll();
     }
 
+
     /**
      * A basic test for rolling restart. We are restarting the ZooKeeper servers one by one,
      * starting from the first server. We always make sure that all the nodes joined to the
      * Quorum before moving forward.
-     *
      * @throws Exception
      */
     @Test
@@ -70,7 +71,6 @@ public class QuorumRestartTest extends ZKTestCase {
     /**
      * Testing one of the errors reported in ZOOKEEPER-2164, when some servers can not
      * rejoin to the Quorum after restarting the servers backwards
-     *
      * @throws Exception
      */
     @Test
@@ -91,10 +91,10 @@ public class QuorumRestartTest extends ZKTestCase {
         }
     }
 
+
     /**
      * Testing one of the errors reported in ZOOKEEPER-2164, when some servers can not
      * rejoin to the Quorum after restarting the current leader multiple times
-     *
      * @throws Exception
      */
     @Test
@@ -119,10 +119,15 @@ public class QuorumRestartTest extends ZKTestCase {
         }
     }
 
+
     @After
     public void tearDown() throws Exception {
         qu.shutdownAll();
         System.clearProperty(ZOOKEEPER_CLIENT_CNXN_SOCKET);
         System.clearProperty(ServerCnxnFactory.ZOOKEEPER_SERVER_CNXN_FACTORY);
     }
+
+
+
+
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,10 +21,8 @@ package org.apache.zookeeper.server;
 import java.io.PrintWriter;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.SessionExpiredException;
-import org.apache.zookeeper.KeeperException.SessionMovedException;
 
 /**
  * This is the basic interface that ZooKeeperServer uses to track sessions. The
@@ -33,35 +31,40 @@ import org.apache.zookeeper.KeeperException.SessionMovedException;
  * shell to track information to be forwarded to the leader.
  */
 public interface SessionTracker {
-    public static interface Session {
+
+    interface Session {
+
         long getSessionId();
         int getTimeout();
         boolean isClosing();
+
     }
-    public static interface SessionExpirer {
+
+    interface SessionExpirer {
+
         void expire(Session session);
 
         long getServerId();
+
     }
 
     long createSession(int sessionTimeout);
 
     /**
-     * Add a global session to those being tracked.
+     * Track the session expire, not add to ZkDb.
      * @param id sessionId
      * @param to sessionTimeout
-     * @return whether the session was newly added (if false, already existed)
+     * @return whether the session was newly tracked (if false, already tracked)
      */
-    boolean addGlobalSession(long id, int to);
+    boolean trackSession(long id, int to);
 
     /**
-     * Add a session to those being tracked. The session is added as a local
-     * session if they are enabled, otherwise as global.
+     * Add the session to the local session map or global one in zkDB.
      * @param id sessionId
      * @param to sessionTimeout
      * @return whether the session was newly added (if false, already existed)
      */
-    boolean addSession(long id, int to);
+    boolean commitSession(long id, int to);
 
     /**
      * @param sessionId
@@ -104,10 +107,7 @@ public interface SessionTracker {
      * @param sessionId
      * @param owner
      */
-    public void checkSession(long sessionId, Object owner)
-            throws KeeperException.SessionExpiredException,
-            KeeperException.SessionMovedException,
-            KeeperException.UnknownSessionException;
+    void checkSession(long sessionId, Object owner) throws KeeperException.SessionExpiredException, KeeperException.SessionMovedException, KeeperException.UnknownSessionException;
 
     /**
      * Strictly check that a given session is a global session or not
@@ -116,9 +116,7 @@ public interface SessionTracker {
      * @throws KeeperException.SessionExpiredException
      * @throws KeeperException.SessionMovedException
      */
-    public void checkGlobalSession(long sessionId, Object owner)
-            throws KeeperException.SessionExpiredException,
-            KeeperException.SessionMovedException;
+    void checkGlobalSession(long sessionId, Object owner) throws KeeperException.SessionExpiredException, KeeperException.SessionMovedException;
 
     void setOwner(long id, Object owner) throws SessionExpiredException;
 
@@ -132,4 +130,12 @@ public interface SessionTracker {
      * Returns a mapping of time to session IDs that expire at that time.
      */
     Map<Long, Set<Long>> getSessionExpiryMap();
+
+    /**
+     * If this session tracker supports local sessions, return how many.
+     * otherwise returns 0;
+     */
+    long getLocalSessionCount();
+
+    boolean isLocalSessionsEnabled();
 }

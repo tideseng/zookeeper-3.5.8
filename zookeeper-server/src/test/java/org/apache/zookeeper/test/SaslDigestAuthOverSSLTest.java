@@ -57,7 +57,7 @@ public class SaslDigestAuthOverSSLTest extends ClientBase {
         hostPort = host + ":" + port;
 
         serverFactory = ServerCnxnFactory.createFactory();
-        serverFactory.configure(new InetSocketAddress(host, port), maxCnxns, true);
+        serverFactory.configure(new InetSocketAddress(host, port), maxCnxns, -1, true);
 
         super.setUp();
     }

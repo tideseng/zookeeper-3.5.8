@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import org.apache.zookeeper.server.ExitCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
@@ -69,7 +70,7 @@ public class GenerateLoad {
     volatile static long currentInterval;
 
     static long lastChange;
-    
+
     static PrintStream sf;
     static PrintStream tf;
     static {
@@ -85,7 +86,8 @@ public class GenerateLoad {
     synchronized static void add(long time, int count, Socket s) {
         long interval = time / INTERVAL;
         if (currentInterval == 0 || currentInterval > interval) {
-            System.out.println("Dropping " + count + " for " + new Date(time)
+            System.out.println(
+                "Dropping " + count + " for " + new Date(time)
                     + " " + currentInterval + ">" + interval);
             return;
         }
@@ -268,7 +270,7 @@ public class GenerateLoad {
     static public class GeneratorInstance implements Instance {
 
         byte bytes[];
-        
+
         int percentage = -1;
 
         int errors;
@@ -286,7 +288,7 @@ public class GenerateLoad {
         int wlatency;
 
         int outstanding;
-        
+
         volatile boolean alive;
 
         class ZooKeeperThread extends Thread implements Watcher, DataCallback,
@@ -555,7 +557,7 @@ public class GenerateLoad {
 
     private static boolean leaderOnly;
     private static boolean leaderServes;
-    
+
     private static String []processOptions(String args[]) {
         ArrayList<String> newArgs = new ArrayList<String>();
         for(String a: args) {
@@ -570,7 +572,7 @@ public class GenerateLoad {
         }
         return newArgs.toArray(new String[0]);
     }
-    
+
     /**
      * @param args
      * @throws InterruptedException
@@ -684,7 +686,7 @@ public class GenerateLoad {
                 doUsage();
             } catch (IOException e) {
                 e.printStackTrace();
-                System.exit(2);
+                System.exit(ExitCode.INVALID_INVOCATION.getValue());
             }
         } else {
             doUsage();
@@ -713,6 +715,6 @@ public class GenerateLoad {
     private static void doUsage() {
         System.err.println("USAGE: " + GenerateLoad.class.getName()
                 + " [--leaderOnly] [--leaderServes] zookeeper_host:port containerPrefix #ofServers #ofClients requestSize");
-        System.exit(2);
+        System.exit(ExitCode.INVALID_INVOCATION.getValue());
     }
 }

@@ -32,6 +32,10 @@
 #include <ws2tcpip.h> /* for struct sock_addr and socklen_t */
 #endif
 
+#ifdef HAVE_OPENSSL_H
+#include <openssl/ossl_typ.h>
+#endif
+
 #include <stdio.h>
 #include <ctype.h>
 
@@ -106,6 +110,7 @@ enum ZOO_ERRORS {
   ZRECONFIGINPROGRESS = -14, /*!< Reconfiguration requested while another
                                   reconfiguration is currently in progress. This
                                   is currently not supported. Please retry. */
+  ZSSLCONNECTIONERROR = -15, /*!< The SSL connection Error */
 
   /** API errors.
    * This is never thrown by the server, it shouldn't be used other than
@@ -130,7 +135,8 @@ enum ZOO_ERRORS {
   ZNOTREADONLY = -119, /*!< state-changing request is passed to read-only server */
   ZEPHEMERALONLOCALSESSION = -120, /*!< Attempt to create ephemeral node on a local session */
   ZNOWATCHER = -121, /*!< The watcher couldn't be found */
-  ZRECONFIGDISABLED = -123 /*!< Attempts to perform a reconfiguration operation when reconfiguration feature is disabled */
+  ZRECONFIGDISABLED = -123, /*!< Attempts to perform a reconfiguration operation when reconfiguration feature is disabled */
+  ZSESSIONCLOSEDREQUIRESASLAUTH = -124 /*!< The session has been closed by server because server requires client to do SASL authentication, but client is not configured with SASL authentication or configuted with SASL but failed (i.e. wrong credential used.). */
 };
 
 #ifdef __cplusplus
@@ -157,6 +163,9 @@ extern ZOOAPI const int ZOO_PERM_ALL;
 
 /* flags for zookeeper_init{,2} */
 #define ZOO_READONLY         1
+
+/** Disable logging of the client environment at initialization time. */
+#define ZOO_NO_LOG_CLIENTENV 2
 
 /** This Id represents anyone. */
 extern ZOOAPI struct Id ZOO_ANYONE_ID_UNSAFE;
@@ -279,6 +288,34 @@ extern ZOOAPI const int ZOO_NOTWATCHING_EVENT;
  * \ref zookeeper_init.
  */
 typedef struct _zhandle zhandle_t;
+
+/**
+ * This structure represents the certificates to zookeeper.
+ */
+typedef struct _zcert {
+    char *certstr;
+    char *ca;
+    char *cert;
+    char *key;
+    char *passwd;
+} zcert_t;
+
+/**
+ * This structure represents the socket to zookeeper.
+ */
+typedef struct _zsock {
+#ifdef WIN32
+    SOCKET sock;
+#else
+    int sock;
+#endif
+    zcert_t *cert;
+#ifdef HAVE_OPENSSL_H
+    SSL *ssl_sock;
+    SSL_CTX *ssl_ctx;
+#endif
+} zsock_t;
+
 
 /**
  * \brief client id structure.
@@ -491,6 +528,13 @@ typedef void (*log_callback_fn)(const char *message);
  */
 ZOOAPI zhandle_t *zookeeper_init(const char *host, watcher_fn fn,
   int recv_timeout, const clientid_t *clientid, void *context, int flags);
+
+#ifdef HAVE_OPENSSL_H
+ZOOAPI zhandle_t *zookeeper_init_ssl(const char *host, const char *cert, watcher_fn fn,
+  int recv_timeout, const clientid_t *clientid, void *context, int flags);
+#endif
+
+ZOOAPI void close_zsock(zsock_t *zsock);
 
 /**
  * \brief create a handle to communicate with zookeeper.
